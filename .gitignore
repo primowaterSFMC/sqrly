@@ -166,3 +166,71 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Node.js / React Native / Expo
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tgz
+*.tar.gz
+
+# React Native
+.react-native/
+
+# Metro
+.metro-health-check*
+
+# Expo
+.expo/
+.expo-shared/
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+/ios/Pods/
+
+# Xcode
+/ios/build/
+/ios/DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace
+
+# Android/IntelliJ
+/android/build/
+/android/app/build/
+/android/captures/
+/android/gradlew.bat
+/android/local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Fastlane
+/ios/fastlane/report.xml
+/ios/fastlane/Preview.html
+/ios/fastlane/screenshots
+/ios/fastlane/test_output
+/android/fastlane/report.xml
+/android/fastlane/Preview.html
+/android/fastlane/screenshots
+/android/fastlane/test_output
