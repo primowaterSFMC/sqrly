@@ -1,0 +1,117 @@
+version: '3.8'
+
+# Development override for docker-compose.yml
+services:
+  # Development Sqrly Application with hot reload
+  sqrly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development tools
+    command: ["python", "run_dev.py"]
+    environment:
+      - DEBUG=true
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - DATABASE_ECHO=true
+      # Override database URL for development
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner_dev}
+    volumes:
+      # Enable hot reload by mounting source code
+      - ./sqrily:/app
+      - ./logs:/app/logs
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Debug port for IDE debugging
+    user: root  # Allow file modifications in development
+
+  # Development PostgreSQL with exposed port
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-sqrly_adhd_planner_dev}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      # Use separate volume for development data
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+  # Development Redis with exposed port
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    # No password for development
+    environment: []
+    volumes:
+      # Use separate volume for development data
+      - redis_dev_data:/data
+
+  # Development Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner_dev}
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379
+      - CELERY_RESULT_BACKEND=redis://redis:6379
+    volumes:
+      - ./sqrily:/app
+      - ./logs:/app/logs
+      - ./data:/app/data
+    user: root
+
+  # Development Celery Beat
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner_dev}
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=redis://redis:6379
+      - CELERY_RESULT_BACKEND=redis://redis:6379
+    volumes:
+      - ./sqrily:/app
+      - ./logs:/app/logs
+      - ./data:/app/data
+    user: root
+
+  # Development tools container
+  dev-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: sqrly-dev-tools
+    command: ["tail", "-f", "/dev/null"]  # Keep container running
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner_dev}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./sqrly:/app
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - sqrly-network
+    profiles:
+      - dev-tools
+    user: root
+
+# Development-specific volumes
+volumes:
+  postgres_dev_data:
+    name: sqrly-postgres-dev-data
+  redis_dev_data:
+    name: sqrly-redis-dev-data

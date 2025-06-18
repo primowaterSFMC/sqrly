@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # Sqrly ADHD Planner Application
+  sqrly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sqrly
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Application Settings
+      - app_name=Sqrly ADHD Planner
+      - app_version=1.0.0
+      - debug=${DEBUG:-true}
+      - environment=${ENVIRONMENT:-development}
+
+      # Database Configuration
+      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      - database_echo=${DATABASE_ECHO:-false}
+
+      # JWT and Security
+      - jwt_secret_key=${JWT_SECRET_KEY:-change-this-in-production}
+      - jwt_algorithm=HS256
+      - jwt_access_token_expire_minutes=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - jwt_refresh_token_expire_days=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+
+      # OpenAI Configuration
+      - openai_api_key=${OPENAI_API_KEY}
+      - openai_model=${OPENAI_MODEL:-gpt-4-1106-preview}
+      - openai_max_tokens=${OPENAI_MAX_TOKENS:-4096}
+      - openai_temperature=${OPENAI_TEMPERATURE:-0.7}
+
+      # Redis Configuration
+      - redis_url=redis://redis:6379
+
+      # Celery Configuration
+      - celery_broker_url=redis://redis:6379
+      - celery_result_backend=redis://redis:6379
+
+      # Rate limiting
+      - rate_limit_requests=${RATE_LIMIT_REQUESTS:-100}
+      - rate_limit_window=${RATE_LIMIT_WINDOW:-60}
+
+      # ADHD-specific settings
+      - max_overwhelm_threshold=${MAX_OVERWHELM_THRESHOLD:-10}
+      - default_focus_duration=${DEFAULT_FOCUS_DURATION:-25}
+      - default_break_duration=${DEFAULT_BREAK_DURATION:-5}
+      - hyperfocus_warning_threshold=${HYPERFOCUS_WARNING_THRESHOLD:-90}
+
+      # Logging
+      - log_level=${LOG_LEVEL:-INFO}
+
+      # Integrations
+      - spotify_client_id=${SPOTIFY_CLIENT_ID:-}
+      - spotify_client_secret=${SPOTIFY_CLIENT_SECRET:-}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sqrly-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sqrly-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"  # Expose PostgreSQL port for external connections
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-sqrly_adhd_planner}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - sqrly-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sqrly_adhd_planner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis for Caching and Background Tasks
+  redis:
+    image: redis:7-alpine
+    container_name: sqrly-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - sqrly-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Celery Worker for Background Tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sqrly-celery-worker
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      # Same environment as main app
+      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      - redis_url=redis://redis:6379
+      - celery_broker_url=redis://redis:6379
+      - celery_result_backend=redis://redis:6379
+      - openai_api_key=${OPENAI_API_KEY}
+      - log_level=${LOG_LEVEL:-INFO}
+      - debug=${DEBUG:-true}
+      - environment=${ENVIRONMENT:-development}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sqrly-network
+
+  # Celery Beat for Scheduled Tasks
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sqrly-celery-beat
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    environment:
+      # Same environment as main app
+      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      - redis_url=redis://redis:6379
+      - celery_broker_url=redis://redis:6379
+      - celery_result_backend=redis://redis:6379
+      - log_level=${LOG_LEVEL:-INFO}
+      - debug=${DEBUG:-true}
+      - environment=${ENVIRONMENT:-development}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sqrly-network
+
+networks:
+  sqrly-network:
+    driver: bridge
+    name: sqrly-network
+
+volumes:
+  postgres_data:
+    name: sqrly-postgres-data
+  redis_data:
+    name: sqrly-redis-data
