@@ -3,10 +3,12 @@ import { View, ScrollView, StyleSheet, Dimensions, ActivityIndicator } from 'rea
 import { Text, Chip, FAB, Searchbar, SegmentedButtons } from 'react-native-paper';
 import { colors } from '../theme';
 import { useTask } from '../contexts/TaskContext';
+import { Task } from '../services/api';
 import { TasksScreenProps } from '../types/navigation';
 import TaskCard from '../components/TaskCard';
 import QuadrantView from '../components/QuadrantView';
 import AIAssistantModal from '../components/AIAssistantModal';
+import TaskDetailModal from '../components/TaskDetailModal';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +19,8 @@ export default function TasksScreen({ navigation }: TasksScreenProps) {
   const [filterQuadrant, setFilterQuadrant] = useState('all');
   const [showAIModal, setShowAIModal] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetail, setShowTaskDetail] = useState(false);
 
   const filters = [
     { value: 'all', label: 'All Tasks' },
@@ -127,8 +131,8 @@ export default function TasksScreen({ navigation }: TasksScreenProps) {
               key={task.id}
               task={task}
               onPress={() => {
-                // TODO: Implement task detail modal or navigation
-                console.log('Task pressed:', task.id);
+                setSelectedTask(task);
+                setShowTaskDetail(true);
               }}
             />
           ))}
@@ -145,8 +149,11 @@ export default function TasksScreen({ navigation }: TasksScreenProps) {
         <QuadrantView
           tasks={filteredTasks}
           onTaskPress={(taskId) => {
-            // TODO: Implement task detail modal or navigation
-            console.log('Task pressed:', taskId);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+              setSelectedTask(task);
+              setShowTaskDetail(true);
+            }
           }}
         />
       )}
@@ -200,6 +207,15 @@ export default function TasksScreen({ navigation }: TasksScreenProps) {
         onTaskCreated={(task) => {
           setShowAIModal(false);
           // Handle task creation
+        }}
+      />
+
+      <TaskDetailModal
+        visible={showTaskDetail}
+        task={selectedTask}
+        onDismiss={() => {
+          setShowTaskDetail(false);
+          setSelectedTask(null);
         }}
       />
     </View>

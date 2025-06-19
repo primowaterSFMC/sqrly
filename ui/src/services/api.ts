@@ -20,6 +20,38 @@ interface ApiResponse<T> {
   success: boolean;
 }
 
+interface Subtask {
+  id: string;
+  task_id: string;
+  title: string;
+  action?: string;
+  completion_criteria?: string;
+  sequence_order: number;
+  depends_on_subtask_ids?: string[];
+  subtask_type: 'preparation' | 'execution' | 'review' | 'micro';
+  difficulty_level: 'easy' | 'medium' | 'hard';
+  status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  estimated_minutes: number;
+  actual_minutes?: number;
+  energy_required: number;
+  focus_required: number;
+  initiation_support?: string;
+  success_indicators?: string[];
+  dopamine_reward?: string;
+  preparation_steps?: string[];
+  materials_needed?: string[];
+  momentum_builder: boolean;
+  confidence_boost: boolean;
+  ai_generated: boolean;
+  ai_confidence?: number;
+  created_at: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  is_blocked?: boolean;
+  can_start?: boolean;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -32,7 +64,7 @@ interface Task {
   created_at: string;
   due_date?: string;
   has_ai_breakdown: boolean;
-  subtasks?: Task[];
+  subtasks?: Subtask[];
   executive_difficulty?: number;
   initiation_difficulty?: number;
   completion_difficulty?: number;
@@ -508,6 +540,138 @@ class ApiService {
     return this.makeRequest('/health');
   }
 
+  // Subtask methods
+  async getSubtasksForTask(taskId: string): Promise<Subtask[]> {
+    // Temporarily use mock mode for subtasks to test UI
+    if (MOCK_MODE || true) {
+      // Return mock subtasks for the task
+      return [
+        {
+          id: '1',
+          task_id: taskId,
+          title: 'Review project requirements',
+          action: 'Read through the project specification document',
+          completion_criteria: 'All requirements understood and noted',
+          sequence_order: 1,
+          subtask_type: 'preparation',
+          difficulty_level: 'easy',
+          status: 'pending',
+          estimated_minutes: 15,
+          energy_required: 3,
+          focus_required: 4,
+          momentum_builder: true,
+          confidence_boost: false,
+          ai_generated: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_blocked: false,
+          can_start: true
+        },
+        {
+          id: '2',
+          task_id: taskId,
+          title: 'Create outline structure',
+          action: 'Draft the main sections and subsections',
+          completion_criteria: 'Clear outline with all major points',
+          sequence_order: 2,
+          subtask_type: 'execution',
+          difficulty_level: 'medium',
+          status: 'pending',
+          estimated_minutes: 30,
+          energy_required: 5,
+          focus_required: 6,
+          momentum_builder: false,
+          confidence_boost: true,
+          ai_generated: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_blocked: false,
+          can_start: true
+        }
+      ];
+    }
+    const response = await this.makeRequest<Subtask[]>(`/subtasks/task/${taskId}`);
+    return response;
+  }
+
+  async createSubtask(subtaskData: Omit<Subtask, 'id' | 'created_at' | 'updated_at' | 'is_blocked' | 'can_start'>): Promise<Subtask> {
+    if (MOCK_MODE || true) {
+      const newSubtask: Subtask = {
+        ...subtaskData,
+        id: Date.now().toString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_blocked: false,
+        can_start: true
+      };
+      return newSubtask;
+    }
+    return this.makeRequest<Subtask>('/subtasks', {
+      method: 'POST',
+      body: JSON.stringify(subtaskData),
+    });
+  }
+
+  async updateSubtask(id: string, subtaskData: Partial<Subtask>): Promise<Subtask> {
+    if (MOCK_MODE) {
+      // Mock update
+      return {
+        id,
+        ...subtaskData,
+        updated_at: new Date().toISOString()
+      } as Subtask;
+    }
+    return this.makeRequest<Subtask>(`/subtasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(subtaskData),
+    });
+  }
+
+  async deleteSubtask(id: string): Promise<void> {
+    if (MOCK_MODE) {
+      return;
+    }
+    await this.makeRequest(`/subtasks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async performSubtaskAction(id: string, action: string, notes?: string, actualMinutes?: number): Promise<Subtask> {
+    if (MOCK_MODE || true) {
+      // Mock action
+      return {
+        id,
+        task_id: 'mock-task-id',
+        title: 'Mock Subtask',
+        sequence_order: 1,
+        subtask_type: 'execution',
+        difficulty_level: 'medium',
+        status: action === 'complete' ? 'completed' : action === 'start' ? 'in_progress' : 'skipped',
+        estimated_minutes: 15,
+        energy_required: 5,
+        focus_required: 5,
+        momentum_builder: false,
+        confidence_boost: false,
+        ai_generated: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_blocked: false,
+        can_start: true,
+        ...(action === 'complete' && { completed_at: new Date().toISOString() }),
+        ...(action === 'start' && { started_at: new Date().toISOString() }),
+        ...(actualMinutes && { actual_minutes: actualMinutes })
+      } as Subtask;
+    }
+    return this.makeRequest<Subtask>(`/subtasks/${id}/action`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action,
+        notes,
+        actual_minutes: actualMinutes
+      }),
+    });
+  }
+
   // Check if user is authenticated
   isAuthenticated(): boolean {
     if (MOCK_MODE) {
@@ -521,6 +685,6 @@ class ApiService {
 export const apiService = new ApiService();
 
 // Export types
-export type { Task, User, AuthTokens, ApiResponse };
+export type { Task, Subtask, User, AuthTokens, ApiResponse };
 
 export default apiService;
