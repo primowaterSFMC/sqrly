@@ -1,23 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Text, Surface, Switch, Button, Avatar, Divider, List } from 'react-native-paper';
+import { Text, Surface, Switch, Button, Avatar, Divider, List, Chip, Card, Modal, Portal, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme';
+import { useAuth } from '../contexts/AuthContext';
+import { useTask } from '../contexts/TaskContext';
+import { ProfileScreenProps } from '../types/navigation';
+import apiService from '../services/api';
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation }: ProfileScreenProps) {
+  const { user, signOut } = useAuth();
+  const { tasks } = useTask();
   const [notifications, setNotifications] = useState(true);
   const [focusReminders, setFocusReminders] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [adhdProfile, setAdhdProfile] = useState(user?.adhd_preferences || {});
+  const [userStats, setUserStats] = useState({
+    streak: 0,
+    totalTasks: 0,
+    focusTime: '0h 0m',
+    completedToday: 0
+  });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingField, setEditingField] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const user = {
-    name: 'Alex Johnson',
-    email: 'alex@example.com',
-    avatar: null,
-    memberSince: 'January 2024',
-    streak: 12,
-    totalTasks: 234,
-    focusTime: '47h 23m',
+  useEffect(() => {
+    loadUserStats();
+    loadUserPreferences();
+  }, [tasks]);
+
+  const loadUserStats = async () => {
+    try {
+      // Calculate stats from tasks
+      const completedTasks = tasks.filter(task => task.completed);
+      const todayCompleted = tasks.filter(task =>
+        task.completed &&
+        new Date(task.updated_at || task.created_at).toDateString() === new Date().toDateString()
+      );
+
+      // Get focus stats from API
+      const focusStats = await apiService.getFocusStats('all');
+
+      setUserStats({
+        streak: focusStats.streak || 5,
+        totalTasks: completedTasks.length,
+        focusTime: formatFocusTime(focusStats.totalFocusTime || 0),
+        completedToday: todayCompleted.length
+      });
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+    }
+  };
+
+  const loadUserPreferences = async () => {
+    try {
+      const preferences = await apiService.get('/users/me/preferences');
+      setNotifications(preferences.pushNotifications ?? true);
+      setFocusReminders(preferences.gentleReminders ?? true);
+      setWeeklyReport(preferences.emailNotifications ?? false);
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+    }
+  };
+
+  const formatFocusTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
+
+  const updatePreference = async (key: string, value: boolean) => {
+    try {
+      await apiService.put('/users/me/preferences', { [key]: value });
+    } catch (error) {
+      console.error('Failed to update preference:', error);
+      Alert.alert('Error', 'Failed to update preference');
+    }
   };
 
   const handleSignOut = () => {
@@ -26,7 +86,7 @@ export default function ProfileScreen({ navigation }) {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => {} },
+        { text: 'Sign Out', style: 'destructive', onPress: signOut },
       ]
     );
   };
@@ -49,31 +109,47 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.profileHeader}>
             <Avatar.Text
               size={80}
-              label={user.name.split(' ').map(n => n[0]).join('')}
+              label={user?.first_name?.[0] || 'U'}
               style={styles.avatar}
               color="#FFFFFF"
             />
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-              <Text style={styles.memberSince}>Member since {user.memberSince}</Text>
+              <Text style={styles.userName}>
+                {user?.first_name} {user?.last_name}
+              </Text>
+              <Text style={styles.userEmail}>{user?.email}</Text>
+              <Text style={styles.memberSince}>
+                Member since {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}
+              </Text>
+              {user?.subscription_tier && (
+                <View style={styles.profileMeta}>
+                  <Chip mode="flat" style={styles.tierChip}>
+                    {user.subscription_tier.charAt(0).toUpperCase() + user.subscription_tier.slice(1)}
+                  </Chip>
+                  {userStats.completedToday > 0 && (
+                    <Chip mode="flat" style={styles.todayChip}>
+                      {userStats.completedToday} done today
+                    </Chip>
+                  )}
+                </View>
+              )}
             </View>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <MaterialCommunityIcons name="fire" size={24} color={colors.accent} />
-              <Text style={styles.statValue}>{user.streak}</Text>
+              <Text style={styles.statValue}>{userStats.streak}</Text>
               <Text style={styles.statLabel}>Day Streak</Text>
             </View>
             <View style={styles.stat}>
               <MaterialCommunityIcons name="check-circle" size={24} color={colors.success} />
-              <Text style={styles.statValue}>{user.totalTasks}</Text>
+              <Text style={styles.statValue}>{userStats.totalTasks}</Text>
               <Text style={styles.statLabel}>Tasks Done</Text>
             </View>
             <View style={styles.stat}>
               <MaterialCommunityIcons name="clock" size={24} color={colors.focusHighlight} />
-              <Text style={styles.statValue}>{user.focusTime}</Text>
+              <Text style={styles.statValue}>{userStats.focusTime}</Text>
               <Text style={styles.statLabel}>Focus Time</Text>
             </View>
           </View>
@@ -91,7 +167,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Switch
               value={notifications}
-              onValueChange={setNotifications}
+              onValueChange={(value) => {
+                setNotifications(value);
+                updatePreference('pushNotifications', value);
+              }}
               color={colors.primary}
             />
           </View>
@@ -105,7 +184,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Switch
               value={focusReminders}
-              onValueChange={setFocusReminders}
+              onValueChange={(value) => {
+                setFocusReminders(value);
+                updatePreference('gentleReminders', value);
+              }}
               color={colors.primary}
             />
           </View>
@@ -119,7 +201,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Switch
               value={weeklyReport}
-              onValueChange={setWeeklyReport}
+              onValueChange={(value) => {
+                setWeeklyReport(value);
+                updatePreference('emailNotifications', value);
+              }}
               color={colors.primary}
             />
           </View>
@@ -307,6 +392,18 @@ const styles = StyleSheet.create({
   memberSince: {
     fontSize: 12,
     color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  profileMeta: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  tierChip: {
+    backgroundColor: colors.primary + '20',
+  },
+  todayChip: {
+    backgroundColor: colors.success + '20',
   },
   statsRow: {
     flexDirection: 'row',

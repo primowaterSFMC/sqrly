@@ -18,8 +18,8 @@ services:
       - debug=${DEBUG:-true}
       - environment=${ENVIRONMENT:-development}
 
-      # Database Configuration
-      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      # Database Configuration - External PostgreSQL
+      - database_url=postgresql://postgres:postgres123@192.168.4.148:5432/sqrly_db
       - database_echo=${DATABASE_ECHO:-false}
 
       # JWT and Security
@@ -61,8 +61,6 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -74,29 +72,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: sqrly-postgres
-    restart: unless-stopped
-    ports:
-      - "5432:5432"  # Expose PostgreSQL port for external connections
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-sqrly_adhd_planner}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
-    networks:
-      - sqrly-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sqrly_adhd_planner}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+  # Note: Using external PostgreSQL database at 192.168.4.148:5432
 
   # Redis for Caching and Background Tasks
   redis:
@@ -126,7 +102,7 @@ services:
     command: celery -A app.celery_app worker --loglevel=info
     environment:
       # Same environment as main app
-      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      - database_url=postgresql://postgres:postgres123@192.168.4.148:5432/sqrly_db
       - redis_url=redis://redis:6379
       - celery_broker_url=redis://redis:6379
       - celery_result_backend=redis://redis:6379
@@ -138,8 +114,6 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -156,7 +130,7 @@ services:
     command: celery -A app.celery_app beat --loglevel=info
     environment:
       # Same environment as main app
-      - database_url=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sqrly_adhd_planner}
+      - database_url=postgresql://postgres:postgres123@192.168.4.148:5432/sqrly_db
       - redis_url=redis://redis:6379
       - celery_broker_url=redis://redis:6379
       - celery_result_backend=redis://redis:6379
@@ -167,8 +141,6 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -180,7 +152,5 @@ networks:
     name: sqrly-network
 
 volumes:
-  postgres_data:
-    name: sqrly-postgres-data
   redis_data:
     name: sqrly-redis-data

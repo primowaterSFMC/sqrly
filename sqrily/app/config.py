@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # App settings
     app_name: str = "Sqrily ADHD Planner"
     app_version: str = "1.0.0"
-    debug: bool = False
+    debug: bool = True
     environment: str = "development"
     
     # Database
@@ -54,10 +54,12 @@ class Settings(BaseSettings):
         if self.debug:
             # Development environment - allow localhost
             return [
-                "http://localhost:3000",
-                "http://localhost:3001",
+                "http://localhost:3000",      # Standard React Native Web port
+                "http://localhost:3001",      # Alternative React Native Web port
+                "http://localhost:19006",     # Expo Web port (current frontend)
                 "http://127.0.0.1:3000",
-                "http://127.0.0.1:3001"
+                "http://127.0.0.1:3001",
+                "http://127.0.0.1:19006"     # Expo Web port (127.0.0.1)
             ]
         else:
             # Production environment - use configured origins or default secure list
@@ -87,9 +89,14 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str]) -> str:
-        if isinstance(v, str):
+        if isinstance(v, str) and v:
             return v
-        return "postgresql://user:password@localhost/sqrily_adhd_planner"
+        # Use environment variable or default
+        import os
+        env_url = os.getenv("DATABASE_URL")
+        if env_url:
+            return env_url
+        return "postgresql://postgres:postgres123@192.168.4.148:5432/sqrly_db"
 
     @field_validator("celery_broker_url", mode="before")
     @classmethod

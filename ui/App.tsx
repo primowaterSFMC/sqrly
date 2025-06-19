@@ -4,7 +4,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from './src/contexts/AuthContext';
+import { View } from 'react-native';
+import { ActivityIndicator } from 'react-native-paper';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TaskProvider } from './src/contexts/TaskContext';
 import { theme } from './src/theme';
 
@@ -14,17 +16,30 @@ import TasksScreen from './src/screens/TasksScreen';
 import FocusScreen from './src/screens/FocusScreen';
 import InsightsScreen from './src/screens/InsightsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import LoginScreen from './src/screens/LoginScreen';
 
 const Tab = createBottomTabNavigator();
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
   return (
-    <AuthProvider>
-      <TaskProvider>
-        <PaperProvider theme={theme}>
-          <NavigationContainer>
-            <StatusBar style="dark" />
-            <Tab.Navigator
+    <TaskProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" />
+        <Tab.Navigator
               screenOptions={{
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: '#888888',
@@ -104,9 +119,17 @@ export default function App() {
                 }}
               />
             </Tab.Navigator>
-          </NavigationContainer>
-        </PaperProvider>
-      </TaskProvider>
+      </NavigationContainer>
+    </TaskProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <PaperProvider theme={theme}>
+        <AppContent />
+      </PaperProvider>
     </AuthProvider>
   );
 }

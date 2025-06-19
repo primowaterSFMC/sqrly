@@ -4,13 +4,14 @@ import { Text, Card, ProgressBar, Chip, FAB, Surface, IconButton } from 'react-n
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { useTask } from '../contexts/TaskContext';
+import { HomeScreenProps } from '../types/navigation';
 import TaskCard from '../components/TaskCard';
 import EnergyTracker from '../components/EnergyTracker';
 import QuickStats from '../components/QuickStats';
 
 const { width } = Dimensions.get('window');
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { tasks, todaysTasks, completedToday } = useTask();
   const [currentEnergy, setCurrentEnergy] = useState(3);
   const [greeting, setGreeting] = useState('');
@@ -38,7 +39,10 @@ export default function HomeScreen({ navigation }) {
             icon="brain"
             size={28}
             iconColor={colors.primary}
-            onPress={() => navigation.navigate('AI Assistant')}
+            onPress={() => {
+              // TODO: Implement AI Assistant modal
+              console.log('AI Assistant pressed');
+            }}
             style={styles.aiButton}
           />
         </View>
@@ -80,10 +84,13 @@ export default function HomeScreen({ navigation }) {
             .filter(task => !task.completed && task.energy_level <= currentEnergy)
             .slice(0, 3)
             .map(task => (
-              <TaskCard 
-                key={task.id} 
+              <TaskCard
+                key={task.id}
                 task={task}
-                onPress={() => navigation.navigate('TaskDetail', { taskId: task.id })}
+                onPress={() => {
+                  // TODO: Implement task detail modal
+                  console.log('Task pressed:', task.id);
+                }}
               />
             ))}
         </View>
@@ -91,9 +98,12 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
-            <Card 
+            <Card
               style={styles.actionCard}
-              onPress={() => navigation.navigate('Tasks', { screen: 'QuickCapture' })}
+              onPress={() => {
+                // Navigate to Tasks tab and trigger quick capture
+                navigation.navigate('Tasks');
+              }}
             >
               <Card.Content style={styles.actionContent}>
                 <MaterialCommunityIcons 
@@ -125,7 +135,10 @@ export default function HomeScreen({ navigation }) {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.navigate('Tasks', { screen: 'AddTask' })}
+        onPress={() => {
+          // Navigate to Tasks tab
+          navigation.navigate('Tasks');
+        }}
         color="#FFFFFF"
       />
     </View>

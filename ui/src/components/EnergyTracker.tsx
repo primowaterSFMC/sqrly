@@ -10,11 +10,11 @@ interface EnergyTrackerProps {
 }
 
 const energyLevels = [
-  { level: 1, label: 'Very Low', icon: 'battery-10', color: colors.error },
-  { level: 2, label: 'Low', icon: 'battery-30', color: colors.warning },
-  { level: 3, label: 'Medium', icon: 'battery-50', color: colors.secondary },
-  { level: 4, label: 'Good', icon: 'battery-70', color: colors.primary },
-  { level: 5, label: 'High', icon: 'battery', color: colors.success },
+  { level: 1, label: 'Very Low', icon: 'battery-10' as const, color: colors.error },
+  { level: 2, label: 'Low', icon: 'battery-30' as const, color: colors.warning },
+  { level: 3, label: 'Medium', icon: 'battery-50' as const, color: colors.secondary },
+  { level: 4, label: 'Good', icon: 'battery-70' as const, color: colors.primary },
+  { level: 5, label: 'High', icon: 'battery' as const, color: colors.success },
 ];
 
 export default function EnergyTracker({ currentEnergy, onEnergyChange }: EnergyTrackerProps) {
@@ -25,9 +25,9 @@ export default function EnergyTracker({ currentEnergy, onEnergyChange }: EnergyT
       <View style={styles.header}>
         <Text style={styles.title}>Current Energy</Text>
         <View style={styles.currentLevel}>
-          <MaterialCommunityIcons 
-            name={currentEnergyData.icon as any} 
-            size={24} 
+          <MaterialCommunityIcons
+            name={currentEnergyData.icon}
+            size={24}
             color={currentEnergyData.color}
           />
           <Text style={[styles.levelText, { color: currentEnergyData.color }]}>
@@ -47,9 +47,9 @@ export default function EnergyTracker({ currentEnergy, onEnergyChange }: EnergyT
               currentEnergy === energy.level && { backgroundColor: energy.color + '20' }
             ]}
           >
-            <MaterialCommunityIcons 
-              name={energy.icon as any} 
-              size={28} 
+            <MaterialCommunityIcons
+              name={energy.icon}
+              size={28}
               color={currentEnergy === energy.level ? energy.color : colors.disabled}
             />
           </TouchableOpacity>

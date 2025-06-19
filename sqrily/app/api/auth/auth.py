@@ -12,7 +12,7 @@ import secrets
 import uuid
 
 from ...database import get_db
-from ...dependencies import create_access_token, create_refresh_token, verify_token
+from ...dependencies import create_access_token, create_refresh_token, verify_token, get_current_user
 from ...models import User, AuthProvider
 from ...config import settings
 from ...schemas.auth import (
@@ -51,11 +51,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    """Get user by email"""
+    """Get user by email address"""
     return db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
 
 def create_user_response(user: User, access_token: str, refresh_token: str) -> dict:
-    """Create standardized user response"""
+    """Create standardized user response with tokens"""
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -67,13 +67,11 @@ def create_user_response(user: User, access_token: str, refresh_token: str) -> d
             "first_name": user.first_name,
             "last_name": user.last_name,
             "avatar_url": user.avatar_url,
-            "provider": user.provider,
+            "provider": user.provider.value,
             "onboarding_completed": user.onboarding_completed,
-            "subscription_tier": user.subscription_tier,
-            "adhd_preferences": {
-                "ai_communication_style": user.get_ai_communication_style(),
-                "overwhelm_threshold": user.get_overwhelm_threshold()
-            } if user.onboarding_completed else None
+            "subscription_tier": user.subscription_tier.value,
+            "adhd_profile": user.adhd_profile,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
         }
     }
 
@@ -345,14 +343,22 @@ async def logout():
         "adhd_friendly_message": "You're all logged out! Take care of yourself. 💙"
     }
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(lambda: None)  # Will be implemented with proper dependency
+    current_user: User = Depends(get_current_user)
 ):
-    """Get current user information"""
-    # This endpoint will be implemented when we have the get_current_user dependency working
-    
-    return {
-        "message": "User info endpoint",
-        "note": "Will be implemented with user management endpoints"
-    }
+    """Get current authenticated user information"""
+    logger.info("Getting current user info", user_id=str(current_user.id))
+
+    return UserResponse(
+        id=str(current_user.id),
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        avatar_url=current_user.avatar_url,
+        provider=current_user.provider.value,
+        onboarding_completed=current_user.onboarding_completed,
+        subscription_tier=current_user.subscription_tier.value,
+        adhd_preferences=current_user.adhd_profile,
+        created_at=current_user.created_at
+    )

@@ -16,7 +16,14 @@ interface QuadrantViewProps {
   onTaskPress: (taskId: string) => void;
 }
 
-const quadrantConfig = {
+type QuadrantKey = 'focus' | 'schedule' | 'delegate' | 'eliminate';
+
+const quadrantConfig: Record<QuadrantKey, {
+  title: string;
+  subtitle: string;
+  color: string;
+  position: any;
+}> = {
   focus: {
     title: 'Focus',
     subtitle: 'Important & Urgent',
@@ -44,7 +51,7 @@ const quadrantConfig = {
 };
 
 export default function QuadrantView({ tasks, onTaskPress }: QuadrantViewProps) {
-  const renderQuadrant = (quadrantKey: string) => {
+  const renderQuadrant = (quadrantKey: QuadrantKey) => {
     const config = quadrantConfig[quadrantKey];
     const quadrantTasks = tasks.filter(task => task.quadrant === quadrantKey);
 

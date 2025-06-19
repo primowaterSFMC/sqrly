@@ -85,6 +85,52 @@ async def create_task(
     )
 
 
+@router.get("/today", response_model=TaskListResponse)
+async def get_todays_tasks(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get tasks for today (due today or scheduled for today).
+
+    Returns tasks that are due today or have been scheduled for today,
+    helping ADHD users focus on what's most relevant right now.
+    """
+    logger.info("Fetching today's tasks", user_id=str(current_user.id))
+
+    task_service = TaskService(db)
+    return await task_service.get_todays_tasks(user_id=current_user.id)
+
+
+@router.get("/quadrant/{quadrant}", response_model=TaskListResponse)
+async def get_tasks_by_quadrant(
+    quadrant: int = Path(..., ge=1, le=4, description="Sqrily quadrant (1-4)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get tasks filtered by Sqrily quadrant.
+
+    Quadrants:
+    1 - Focus (Important & Urgent)
+    2 - Schedule (Important & Not Urgent)
+    3 - Delegate (Not Important & Urgent)
+    4 - Eliminate (Not Important & Not Urgent)
+    """
+    logger.info("Fetching tasks by quadrant", user_id=str(current_user.id), quadrant=quadrant)
+
+    # Create filters for the specific quadrant
+    filters = TaskFilters(fc_quadrant=[quadrant])
+
+    task_service = TaskService(db)
+    return await task_service.get_user_tasks(
+        user_id=current_user.id,
+        page=1,
+        per_page=100,  # Get all tasks in quadrant
+        filters=filters
+    )
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: UUID = Path(..., description="Task ID"),

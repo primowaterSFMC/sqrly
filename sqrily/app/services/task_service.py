@@ -329,6 +329,49 @@ class TaskService:
         self.db.refresh(task)
         
         return await self._task_to_response(task)
+
+    async def get_todays_tasks(self, user_id: UUID) -> TaskListResponse:
+        """Get tasks for today (due today or scheduled for today)"""
+        from datetime import datetime, date
+
+        today = date.today()
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
+
+        # Query for tasks due today or scheduled for today
+        query = self.db.query(Task).filter(
+            and_(
+                Task.user_id == user_id,
+                Task.deleted_at.is_(None),
+                or_(
+                    and_(
+                        Task.due_date >= today_start,
+                        Task.due_date <= today_end
+                    ),
+                    and_(
+                        Task.scheduled_start >= today_start,
+                        Task.scheduled_start <= today_end
+                    )
+                )
+            )
+        ).order_by(Task.due_date.asc(), Task.scheduled_start.asc())
+
+        tasks = query.all()
+
+        # Convert to response format
+        task_responses = []
+        for task in tasks:
+            task_responses.append(await self._task_to_response(task))
+
+        return TaskListResponse(
+            tasks=task_responses,
+            total=len(task_responses),
+            page=1,
+            per_page=len(task_responses),
+            total_pages=1,
+            has_next=False,
+            has_prev=False
+        )
     
     def _calculate_quadrant(self, urgency: int, importance: int) -> int:
         """Calculate Sqrily quadrant based on urgency and importance"""

@@ -14,7 +14,7 @@ export default function AIAssistantModal({ visible, onDismiss, onTaskCreated }: 
   const [step, setStep] = useState(1);
   const [taskDescription, setTaskDescription] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [breakdown, setBreakdown] = useState(null);
+  const [breakdown, setBreakdown] = useState<any>(null);
   const [selectedSubtasks, setSelectedSubtasks] = useState<string[]>([]);
 
   const handleAnalyze = async () => {
@@ -71,9 +71,11 @@ export default function AIAssistantModal({ visible, onDismiss, onTaskCreated }: 
   };
 
   const handleCreate = () => {
+    if (!breakdown) return;
+
     onTaskCreated({
       ...breakdown.mainTask,
-      subtasks: breakdown.subtasks.filter(st => selectedSubtasks.includes(st.id)),
+      subtasks: breakdown.subtasks.filter((st: any) => selectedSubtasks.includes(st.id)),
     });
   };
 
@@ -173,24 +175,26 @@ export default function AIAssistantModal({ visible, onDismiss, onTaskCreated }: 
                 Select which subtasks you'd like to create
               </Text>
 
-              <Surface style={styles.mainTaskCard} elevation={1}>
-                <Text style={styles.mainTaskTitle}>{breakdown.mainTask.title}</Text>
-                <View style={styles.taskMeta}>
-                  <Chip
-                    mode="flat"
-                    style={[styles.chip, { backgroundColor: colors.accent + '20' }]}
-                    textStyle={[styles.chipText, { color: colors.accent }]}
-                  >
-                    {breakdown.mainTask.quadrant}
-                  </Chip>
-                  <Text style={styles.metaText}>
-                    {breakdown.mainTask.time_estimate} min • Energy {breakdown.mainTask.energy_level}/5
-                  </Text>
-                </View>
-              </Surface>
+              {breakdown && (
+                <Surface style={styles.mainTaskCard} elevation={1}>
+                  <Text style={styles.mainTaskTitle}>{breakdown.mainTask.title}</Text>
+                  <View style={styles.taskMeta}>
+                    <Chip
+                      mode="flat"
+                      style={[styles.chip, { backgroundColor: colors.accent + '20' }]}
+                      textStyle={[styles.chipText, { color: colors.accent }]}
+                    >
+                      {breakdown.mainTask.quadrant}
+                    </Chip>
+                    <Text style={styles.metaText}>
+                      {breakdown.mainTask.time_estimate} min • Energy {breakdown.mainTask.energy_level}/5
+                    </Text>
+                  </View>
+                </Surface>
+              )}
 
               <Text style={styles.sectionTitle}>Suggested Subtasks</Text>
-              {breakdown.subtasks.map((subtask) => (
+              {breakdown?.subtasks?.map((subtask: any) => (
                 <TouchableOpacity
                   key={subtask.id}
                   onPress={() => toggleSubtask(subtask.id)}
@@ -211,31 +215,33 @@ export default function AIAssistantModal({ visible, onDismiss, onTaskCreated }: 
                     </Text>
                   </View>
                 </TouchableOpacity>
-              ))}
+              )) || []}
 
-              <Surface style={styles.insightsCard} elevation={1}>
-                <Text style={styles.insightsTitle}>AI Insights</Text>
-                <View style={styles.insight}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color={colors.focusHighlight} />
-                  <View style={styles.insightContent}>
-                    <Text style={styles.insightLabel}>Best time to work</Text>
-                    <Text style={styles.insightValue}>{breakdown.insights.bestTime}</Text>
+              {breakdown?.insights && (
+                <Surface style={styles.insightsCard} elevation={1}>
+                  <Text style={styles.insightsTitle}>AI Insights</Text>
+                  <View style={styles.insight}>
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={colors.focusHighlight} />
+                    <View style={styles.insightContent}>
+                      <Text style={styles.insightLabel}>Best time to work</Text>
+                      <Text style={styles.insightValue}>{breakdown.insights.bestTime}</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.insight}>
-                  <MaterialCommunityIcons name="timer" size={20} color={colors.primary} />
-                  <View style={styles.insightContent}>
-                    <Text style={styles.insightLabel}>Total time needed</Text>
-                    <Text style={styles.insightValue}>{breakdown.insights.totalTime}</Text>
+                  <View style={styles.insight}>
+                    <MaterialCommunityIcons name="timer" size={20} color={colors.primary} />
+                    <View style={styles.insightContent}>
+                      <Text style={styles.insightLabel}>Total time needed</Text>
+                      <Text style={styles.insightValue}>{breakdown.insights.totalTime}</Text>
+                    </View>
                   </View>
-                </View>
-                {breakdown.insights.tips.map((tip, index) => (
-                  <View key={index} style={styles.tipRow}>
-                    <MaterialCommunityIcons name="lightbulb-outline" size={16} color={colors.secondary} />
-                    <Text style={styles.tipText}>{tip}</Text>
-                  </View>
-                ))}
-              </Surface>
+                  {breakdown.insights.tips?.map((tip: string, index: number) => (
+                    <View key={index} style={styles.tipRow}>
+                      <MaterialCommunityIcons name="lightbulb-outline" size={16} color={colors.secondary} />
+                      <Text style={styles.tipText}>{tip}</Text>
+                    </View>
+                  )) || []}
+                </Surface>
+              )}
 
               <View style={styles.actions}>
                 <Button

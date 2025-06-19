@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { Text, Chip, FAB, Searchbar, SegmentedButtons } from 'react-native-paper';
 import { colors } from '../theme';
+import { useTask } from '../contexts/TaskContext';
+import { TasksScreenProps } from '../types/navigation';
 import TaskCard from '../components/TaskCard';
 import QuadrantView from '../components/QuadrantView';
 import AIAssistantModal from '../components/AIAssistantModal';
 
 const { width } = Dimensions.get('window');
 
-export default function TasksScreen({ navigation }) {
+export default function TasksScreen({ navigation }: TasksScreenProps) {
+  const { tasks, isLoading, error, getTasksByQuadrant } = useTask();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('list');
   const [filterQuadrant, setFilterQuadrant] = useState('all');
   const [showAIModal, setShowAIModal] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const filters = [
     { value: 'all', label: 'All Tasks' },
@@ -22,45 +26,47 @@ export default function TasksScreen({ navigation }) {
     { value: 'eliminate', label: 'Eliminate', color: colors.textSecondary },
   ];
 
-  // Mock data - replace with context/API data
-  const tasks = [
-    {
-      id: '1',
-      title: 'Review project proposal and provide feedback',
-      quadrant: 'focus',
-      energy_level: 4,
-      time_estimate: 45,
-      difficulty_level: 3,
-      completed: false,
-      has_ai_breakdown: true,
-    },
-    {
-      id: '2',
-      title: 'Schedule dentist appointment',
-      quadrant: 'schedule',
-      energy_level: 2,
-      time_estimate: 10,
-      difficulty_level: 1,
-      completed: false,
-      has_ai_breakdown: false,
-    },
-    {
-      id: '3',
-      title: 'Prepare weekly team meeting agenda',
-      quadrant: 'focus',
-      energy_level: 3,
-      time_estimate: 30,
-      difficulty_level: 2,
-      completed: false,
-      has_ai_breakdown: true,
-    },
-  ];
+  // Get filtered tasks based on current filter
+  const getFilteredTasks = () => {
+    let filteredTasks = tasks;
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesQuadrant = filterQuadrant === 'all' || task.quadrant === filterQuadrant;
-    return matchesSearch && matchesQuadrant;
-  });
+    // Filter by quadrant
+    if (filterQuadrant !== 'all') {
+      filteredTasks = filteredTasks.filter(task => task.quadrant === filterQuadrant);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      filteredTasks = filteredTasks.filter(task =>
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+
+    return filteredTasks;
+  };
+
+  const filteredTasks = getFilteredTasks();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading tasks...</Text>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Error loading tasks</Text>
+        <Text style={styles.errorSubtext}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -120,7 +126,10 @@ export default function TasksScreen({ navigation }) {
             <TaskCard
               key={task.id}
               task={task}
-              onPress={() => navigation.navigate('TaskDetail', { taskId: task.id })}
+              onPress={() => {
+                // TODO: Implement task detail modal or navigation
+                console.log('Task pressed:', task.id);
+              }}
             />
           ))}
           {filteredTasks.length === 0 && (
@@ -133,35 +142,50 @@ export default function TasksScreen({ navigation }) {
           )}
         </ScrollView>
       ) : (
-        <QuadrantView 
+        <QuadrantView
           tasks={filteredTasks}
-          onTaskPress={(taskId) => navigation.navigate('TaskDetail', { taskId })}
+          onTaskPress={(taskId) => {
+            // TODO: Implement task detail modal or navigation
+            console.log('Task pressed:', taskId);
+          }}
         />
       )}
 
       <FAB.Group
-        open={false}
+        open={fabOpen}
         visible
-        icon="plus"
+        icon={fabOpen ? 'close' : 'plus'}
+        onStateChange={({ open }) => setFabOpen(open)}
         actions={[
           {
             icon: 'robot',
             label: 'AI Breakdown',
-            onPress: () => setShowAIModal(true),
+            onPress: () => {
+              setShowAIModal(true);
+              setFabOpen(false);
+            },
             color: colors.primary,
             style: { backgroundColor: colors.surface },
           },
           {
             icon: 'lightning-bolt',
             label: 'Quick Add',
-            onPress: () => navigation.navigate('QuickCapture'),
+            onPress: () => {
+              // TODO: Implement quick task creation modal
+              console.log('Quick add pressed');
+              setFabOpen(false);
+            },
             color: colors.accent,
             style: { backgroundColor: colors.surface },
           },
           {
             icon: 'text',
             label: 'Full Task',
-            onPress: () => navigation.navigate('AddTask'),
+            onPress: () => {
+              // TODO: Implement full task creation modal
+              console.log('Full task pressed');
+              setFabOpen(false);
+            },
             color: colors.text,
             style: { backgroundColor: colors.surface },
           },
@@ -186,6 +210,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.error,
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   header: {
     paddingHorizontal: 20,
